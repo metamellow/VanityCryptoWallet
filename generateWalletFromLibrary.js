@@ -5,7 +5,7 @@ const cluster = require('cluster');
 const os = require('os');
 
 // VARIABLES
-const useHalfCores = true;
+const useLowPower = true;
 const useStartString = true;
 const caseInsensitive = false;
 const logFrequency = 1000;
@@ -35,7 +35,7 @@ const acceptableWords = [
 const wordSet = new Set(acceptableWords);
 
 const numCPUs = os.cpus().length;
-const numWorkers = useHalfCores ? Math.ceil(numCPUs / 2) : numCPUs - 2;
+const numWorkers = useLowPower ? Math.ceil(numCPUs - (numCPUs - 2)) : numCPUs - 2;
 
 if (cluster.isMaster) {
     console.log(`Master ${process.pid} is running with ${numWorkers} workers`);
