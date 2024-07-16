@@ -102,20 +102,20 @@
         document.getElementById('uppercaseOnly').addEventListener('change', updateTimePrediction);
         document.getElementById('startEndOnly').addEventListener('change', updateTimePrediction);
 
-        const numCores = navigator.hardwareConcurrency || 4; // Default to 4 if detection fails
-        const numWorkers = Math.max(1, Math.floor(numCores / 2)); // Limit to 50% of available cores
+        const numCores = navigator.hardwareConcurrency || 2;
+        const numWorkers = Math.max(1, Math.floor(numCores / 2));
 
         function updateTimePrediction() {
             const word = document.getElementById('searchWord').value;
             const isUppercaseOnly = document.getElementById('uppercaseOnly').checked;
             const isStartEndOnly = document.getElementById('startEndOnly').checked;
 
-            let complexity = Math.pow(16, word.length); // Estimation: each character has 16 possible values (a-f, 0-9)
-            if (isUppercaseOnly) complexity *= 3; // Case sensitivity doubles the possibilities
-            if (isStartEndOnly) complexity *= 15; // Searching start and end only significantly increases complexity
+            let complexity = Math.pow(16, word.length);
+            if (isUppercaseOnly) complexity *= 3;
+            if (isStartEndOnly) complexity *= 15;
 
-            const timePerAttempt = 0.005; // Adjusted this multiplier based on real-world observations (time per attempt in seconds)
-            const adjustedTimePerAttempt = timePerAttempt / numWorkers; // Adjust based on number of workers
+            const timePerAttempt = 0.005;
+            const adjustedTimePerAttempt = timePerAttempt / numWorkers;
             const timeEstimateSeconds = complexity * adjustedTimePerAttempt;
             const timeEstimate = convertSecondsToReadableTime(timeEstimateSeconds);
             document.getElementById('timePrediction').innerText = `Estimated time to find a match: ${timeEstimate}`;
@@ -223,7 +223,6 @@
             }
         });
 
-        // Call updateTimePrediction initially to show the time estimate when the page loads
         updateTimePrediction();
     </script>
 </body>
