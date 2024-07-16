@@ -5,31 +5,21 @@ const cluster = require('cluster');
 const os = require('os');
 
 // VARIABLES
-const useLowPower = true;
+const useLowPower = false;
 const useStartString = true;
 const caseInsensitive = false;
 const logFrequency = 1000;
 const batchSize = 1000;
 
 // WORDLIST
-// Removed: BAD, DAD, 
 const acceptableWords = [
-    "AAAAA",
-    "BBBBB", "BEEF", "B00B", "BABE",
-    "CCCCC", "C0DE", "C0FFEE", "CODE", "CAFE",
-    "DDDDD", "DEAD", "D00D",
-    "EEEEE",
-    "FFFFF", "F00D", "FEED", "FADE",
-    "00000", "00420", "00069",
-    "11111", "12345",
-    "22222",
-    "33333",
-    "44444", "42069", "420420",
-    "55555",
-    "66666", "69420", "6969",
-    "77777",
-    "88888",
-    "99999"
+    "C0FFEE", "BEEF", "beef", "B00B", "BABE", "babe", "C0DE", "DEAD", "dead", "D00D", "F00D", "FEED",
+    "AAAAA", "aaaaa", "BBBBB", "bbbbb", "CCCCC", "ccccc", "DDDDD", "ddddd", "EEEEE", "eeeee", "FFFFF", "fffff",
+    "00000", "11111", "22222", "33333", "44444", "55555", "66666", "77777", "88888", "99999",
+    // "AAAA", "aaaa", "BBBB", "bbbb", "CCCC", "cccc", "DDDD", "dddd", "EEEE", "eeee", "FFFF", "ffff",
+    // "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
+    // "AA", "aa", "BB", "bb", "CC", "cc", "DD", "dd", "EE", "ee", "FF", "ff",
+    // "00", "11", "22", "33", "44", "55", "66", "77", "88", "99",
 ].map(word => caseInsensitive ? word.toLowerCase() : word);
 
 const wordSet = new Set(acceptableWords);
