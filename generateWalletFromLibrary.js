@@ -5,17 +5,19 @@ const cluster = require('cluster');
 const os = require('os');
 
 // VARIABLES
-const useLowPower = false;
+const useLowPower = true;
 const useStartString = true;
 const caseInsensitive = false;
-const logFrequency = 1000;
-const batchSize = 1000;
+const logFrequency = 10000;
+const batchSize = 10000;
 
 // WORDLIST
 const acceptableWords = [
-    "C0FFEE", "BEEF", "beef", "B00B", "BABE", "babe", "C0DE", "DEAD", "dead", "D00D", "F00D", "FEED",
-    "AAAAA", "aaaaa", "BBBBB", "bbbbb", "CCCCC", "ccccc", "DDDDD", "ddddd", "EEEEE", "eeeee", "FFFFF", "fffff",
-    "00000", "11111", "22222", "33333", "44444", "55555", "66666", "77777", "88888", "99999",
+    "C00C1E", "C00CEE", "C00CE", "C00C",
+
+    // "C0FFEE", "BEEF", "beef", "B00B", "BABE", "babe", "C0DE", "DEAD", "dead", "D00D", "F00D", "FEED",
+    // "AAAAA", "aaaaa", "BBBBB", "bbbbb", "CCCCC", "ccccc", "DDDDD", "ddddd", "EEEEE", "eeeee", "FFFFF", "fffff",
+    // "00000", "11111", "22222", "33333", "44444", "55555", "66666", "77777", "88888", "99999",
     // "AAAA", "aaaa", "BBBB", "bbbb", "CCCC", "cccc", "DDDD", "dddd", "EEEE", "eeee", "FFFF", "ffff",
     // "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999",
     // "AA", "aa", "BB", "bb", "CC", "cc", "DD", "dd", "EE", "ee", "FF", "ff",
@@ -25,7 +27,7 @@ const acceptableWords = [
 const wordSet = new Set(acceptableWords);
 
 const numCPUs = os.cpus().length;
-const numWorkers = useLowPower ? Math.ceil(numCPUs - (numCPUs - 2)) : numCPUs - 2;
+const numWorkers = useLowPower ? Math.ceil(numCPUs - (numCPUs - 4)) : numCPUs - 2;
 
 if (cluster.isMaster) {
     console.log(`Master ${process.pid} is running with ${numWorkers} workers`);
@@ -54,10 +56,10 @@ if (cluster.isMaster) {
             for (let i = 0; i < batchSize; i++) {
                 const wallet = ethers.Wallet.createRandom();
                 const address = caseInsensitive ? wallet.address.toLowerCase() : wallet.address;
-                batch.push({ address, privateKey: wallet.privateKey });
+                batch.push({ address, privateKey: wallet.privateKey, mnemonic: wallet.mnemonic.phrase });
             }
 
-            for (const { address, privateKey } of batch) {
+            for (const { address, privateKey, mnemonic } of batch) {
                 attempts++;
                 let match = false;
 
@@ -82,7 +84,7 @@ if (cluster.isMaster) {
 
                 if (match) {
                     found = true;
-                    console.log(`Address: ${address}, Private Key: ${privateKey}, Attempts: ${attempts}`);
+                    console.log(`Address: ${address}, Private Key: ${privateKey}, Seed Phrase: ${mnemonic}, Attempts: ${attempts}`);
                     process.exit(0);
                 }
 
