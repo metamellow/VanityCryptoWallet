@@ -5,11 +5,11 @@ const cluster = require('cluster');
 const os = require('os');
 
 // VARIABLES
-const useLowPower = true;
-const useStartString = true;
+const useLowPower = false;
+const useStartString = false;
 const caseInsensitive = false;
-const logFrequency = 10000;
-const batchSize = 10000;
+const logFrequency = 1000;
+const batchSize = 1000;
 
 // WORDLIST
 const acceptableWords = [
