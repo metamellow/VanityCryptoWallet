@@ -6,14 +6,16 @@ const os = require('os');
 
 // VARIABLES
 const useLowPower = false;
-const useStartString = false;
+const useStartString = true;
 const caseInsensitive = false;
 const logFrequency = 1000;
 const batchSize = 1000;
 
 // WORDLIST
 const acceptableWords = [
-    "C00C1E", "C00CEE", "C00CE", "C00C"
+    "C00C1E", "C0FFEE", "B00BIE",
+    "C0DE", "B00B", "DEAD", "CAFE", "D00D", "FACE", "BABE", "BEEF", "F00D", 
+    "ACE", "ICE", "BAD",
 ].map(word => caseInsensitive ? word.toLowerCase() : word);
 
 const wordSet = new Set(acceptableWords);
