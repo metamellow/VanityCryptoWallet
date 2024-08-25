@@ -21,7 +21,7 @@ const acceptableWords = [
 const wordSet = new Set(acceptableWords);
 
 const numCPUs = os.cpus().length;
-const numWorkers = useLowPower ? Math.ceil(numCPUs - (numCPUs - 4)) : numCPUs - 2;
+const numWorkers = useLowPower ? Math.ceil(numCPUs - (numCPUs - 4)) : numCPUs - 4;
 
 if (cluster.isMaster) {
     console.log(`Master ${process.pid} is running with ${numWorkers} workers`);
