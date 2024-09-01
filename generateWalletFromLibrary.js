@@ -15,7 +15,7 @@ const batchSize = 1000;
 const acceptableWords = [
     "C00C1E", "C0FFEE", "B00BIE",
     "C0DE", "B00B", "DEAD", "CAFE", "D00D", "FACE", "BABE", "BEEF", "F00D", 
-    "ACE", "ICE", "BAD",
+    "ACE", "ICE", "BAD", "DAD",
 ].map(word => caseInsensitive ? word.toLowerCase() : word);
 
 const wordSet = new Set(acceptableWords);
