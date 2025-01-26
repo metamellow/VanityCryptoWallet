@@ -27,8 +27,9 @@ CASE_INSENSITIVE = False
 
 # Define acceptable words
 WORDS = [
-    "C00C1E", "C0FFEE", "B00BIE",
-    "C0DE", "B00B", "DEAD", "CAFE", "D00D", "FACE", "BABE", "BEEF", "F00D", 
+    "C0FFEE", "B00BIE",
+    "C0DE", "B00B", "DEAD", "D00D", "FACE", "BABE", "BEEF", "F00D", 
+    "69696969", "420420420",
 ]
 
 # Required Python packages

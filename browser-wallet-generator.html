@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet Generator</title>
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #00ffcc;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="text"] {
+            margin: 5px 0;
+            padding: 10px;
+            background-color: #1f1f1f;
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            width: calc(100% - 24px);
+            box-sizing: border-box;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .checkbox-group label {
+            margin: 0;
+        }
+        button {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #1f1f1f;
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            cursor: pointer;
+            width: calc(100% - 24px);
+            box-sizing: border-box;
+        }
+        button:hover {
+            background-color: #00ffcc;
+            color: #1f1f1f;
+        }
+        #result {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #1f1f1f;
+            border: 1px solid #00ffcc;
+            overflow-wrap: break-word;
+        }
+        #log {
+            border: 1px solid #00ffcc;
+            padding: 10px;
+            height: 200px;
+            overflow-y: scroll;
+            background-color: #1f1f1f;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Wallet Generator</h1>
+    <label for="searchWord">Enter a word to search for:</label>
+    <input type="text" id="searchWord" pattern="[a-fA-F0-9]{1,}" title="Must be between 1 and 6 characters, and contain only a-f or 0-9">
+    <br><br>
+    <div id="timePrediction">Estimated time to find a match: </div>
+    <br>
+    <div class="checkbox-group">
+        <input type="checkbox" id="uppercaseOnly">
+        <label for="uppercaseOnly">Search for uppercase only</label>
+    </div>
+    <div class="checkbox-group">
+        <input type="checkbox" id="startEndOnly">
+        <label for="startEndOnly">Only Start and End</label>
+    </div>
+    <br>
+    <button id="startSearch">Start Search</button>
+    <br><br>
+    <div id="result"></div>
+    <br>
+    <div id="log"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script>
+        document.getElementById('searchWord').addEventListener('input', updateTimePrediction);
+        document.getElementById('uppercaseOnly').addEventListener('change', updateTimePrediction);
+        document.getElementById('startEndOnly').addEventListener('change', updateTimePrediction);
+
+        const numCores = navigator.hardwareConcurrency || 2;
+        const numWorkers = Math.max(1, Math.floor(numCores / 2));
+
+        function updateTimePrediction() {
+            const word = document.getElementById('searchWord').value;
+            const isUppercaseOnly = document.getElementById('uppercaseOnly').checked;
+            const isStartEndOnly = document.getElementById('startEndOnly').checked;
+
+            let complexity = Math.pow(16, word.length);
+            if (isUppercaseOnly) complexity *= 3;
+            if (isStartEndOnly) complexity *= 15;
+
+            const timePerAttempt = 0.005;
+            const adjustedTimePerAttempt = timePerAttempt / numWorkers;
+            const timeEstimateSeconds = complexity * adjustedTimePerAttempt;
+            const timeEstimate = convertSecondsToReadableTime(timeEstimateSeconds);
+            document.getElementById('timePrediction').innerText = `Estimated time to find a match: ${timeEstimate}`;
+        }
+
+        function convertSecondsToReadableTime(seconds) {
+            const years = Math.floor(seconds / (365 * 24 * 60 * 60));
+            seconds %= (365 * 24 * 60 * 60);
+            const weeks = Math.floor(seconds / (7 * 24 * 60 * 60));
+            seconds %= (7 * 24 * 60 * 60);
+            const days = Math.floor(seconds / (24 * 60 * 60));
+            seconds %= (24 * 60 * 60);
+            const hours = Math.floor(seconds / (60 * 60));
+            seconds %= (60 * 60);
+            const minutes = Math.floor(seconds / 60);
+            seconds = Math.floor(seconds % 60);
+
+            const parts = [];
+            if (years > 0) parts.push(`${years} years`);
+            if (weeks > 0) parts.push(`${weeks} weeks`);
+            if (days > 0) parts.push(`${days} days`);
+            if (hours > 0) parts.push(`${hours} hours`);
+            if (minutes > 0) parts.push(`${minutes} minutes`);
+            if (seconds > 0) parts.push(`${seconds} seconds`);
+
+            return parts.join(' ');
+        }
+
+        document.getElementById('startSearch').addEventListener('click', async () => {
+            const word = document.getElementById('searchWord').value;
+            const uppercaseOnly = document.getElementById('uppercaseOnly').checked;
+            const startEndOnly = document.getElementById('startEndOnly').checked;
+
+            if (!/^[a-fA-F0-9]+$/.test(word)) {
+                alert('The word must contain only a-f and 0-9 characters.');
+                return;
+            }
+
+            const wordToCheck = uppercaseOnly ? word.toUpperCase() : word;
+            document.getElementById('result').innerHTML = 'Searching...';
+            document.getElementById('log').innerHTML = 'Initializing...';
+
+            if (window.Worker) {
+                const workers = [];
+                for (let i = 0; i < numWorkers; i++) {
+                    const blob = new Blob([`
+                        self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js');
+                        self.addEventListener('message', (event) => {
+                            const { wordToCheck, uppercaseOnly, startEndOnly } = event.data;
+                            let found = false;
+                            let attempts = 0;
+                            self.postMessage({ log: 'Worker started...' });
+                            while (!found) {
+                                attempts++;
+                                const wallet = ethers.Wallet.createRandom();
+                                const address = wallet.address;
+                                let match = false;
+                                if (startEndOnly) {
+                                    const addressStart = address.slice(2, 2 + wordToCheck.length);
+                                    const addressEnd = address.slice(-wordToCheck.length);
+                                    match = (addressStart === wordToCheck || addressEnd === wordToCheck);
+                                } else {
+                                    match = address.includes(wordToCheck);
+                                }
+                                if (match) {
+                                    self.postMessage({ found: true, address, mnemonic: wallet.mnemonic.phrase, attempts });
+                                    break;
+                                }
+                                if (attempts % 10 === 0) {
+                                    self.postMessage({ found: false, attempts });
+                                }
+                            }
+                        });
+                    `], { type: 'application/javascript' });
+
+                    const worker = new Worker(URL.createObjectURL(blob));
+                    workers.push(worker);
+
+                    worker.postMessage({ wordToCheck, uppercaseOnly, startEndOnly });
+
+                    worker.onmessage = (event) => {
+                        const data = event.data;
+                        if (data.log) {
+                            const logEntry = document.createElement('div');
+                            logEntry.innerText = data.log;
+                            logEntry.classList.add('log-entry');
+                            document.getElementById('log').insertBefore(logEntry, document.getElementById('log').firstChild);
+                        } else if (data.found) {
+                            document.getElementById('result').innerHTML = `
+                                <p>Address: ${data.address}</p>
+                                <p>Mnemonic: ${data.mnemonic}</p>
+                                <p>Attempts: ${data.attempts}</p>
+                            `;
+                            workers.forEach(w => w.terminate());
+                        } else {
+                            const logEntry = document.createElement('div');
+                            logEntry.innerText = `Attempts: ${data.attempts}`;
+                            logEntry.classList.add('log-entry');
+                            document.getElementById('log').insertBefore(logEntry, document.getElementById('log').firstChild);
+                        }
+                    };
+                }
+            } else {
+                alert('Your browser does not support Web Workers.');
+            }
+        });
+
+        updateTimePrediction();
+    </script>
+</body>
+</html>
