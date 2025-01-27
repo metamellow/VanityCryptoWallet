@@ -111,7 +111,7 @@
 
             let complexity = Math.pow(16, word.length);
             if (isUppercaseOnly) complexity *= 3;
-            if (isStartEndOnly) complexity *= 15;
+            if (isStartEndOnly) complexity *= 30; // Adjusted for requiring both start AND end
 
             const timePerAttempt = 0.005;
             const adjustedTimePerAttempt = timePerAttempt / numWorkers;
@@ -175,7 +175,7 @@
                                 if (startEndOnly) {
                                     const addressStart = address.slice(2, 2 + wordToCheck.length);
                                     const addressEnd = address.slice(-wordToCheck.length);
-                                    match = (addressStart === wordToCheck || addressEnd === wordToCheck);
+                                    match = (addressStart === wordToCheck && addressEnd === wordToCheck);
                                 } else {
                                     match = address.includes(wordToCheck);
                                 }
