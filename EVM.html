@@ -76,7 +76,7 @@
 <body>
     <h1>Wallet Generator</h1>
     <label for="searchWord">Enter a word to search for:</label>
-    <input type="text" id="searchWord" pattern="[a-fA-F0-9]{1,}" title="Must be between 1 and 6 characters, and contain only a-f or 0-9">
+    <input type="text" id="searchWord" pattern="[a-fA-F0-9]{1,}" value="DEAD, BEEF, CAFE, BABE, FACE, FADE, F00D, B00B, D00D" title="Must be between 1 and 6 characters, and contain only a-f or 0-9">
     <br><br>
     <div id="timePrediction">Estimated time to find a match: </div>
     <br>
@@ -97,6 +97,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script>
+        let totalAttempts = 0;
         document.getElementById('searchWord').addEventListener('input', updateTimePrediction);
         document.getElementById('uppercaseOnly').addEventListener('change', updateTimePrediction);
         document.getElementById('startEndOnly').addEventListener('change', updateTimePrediction);
@@ -105,13 +106,16 @@
         const numWorkers = Math.max(1, Math.floor(numCores / 2));
 
         function updateTimePrediction() {
-            const word = document.getElementById('searchWord').value;
+            const patterns = document.getElementById('searchWord').value
+                .split(',')
+                .map(w => w.trim());
+            const maxLength = Math.max(...patterns.map(w => w.length));
             const isUppercaseOnly = document.getElementById('uppercaseOnly').checked;
             const isStartEndOnly = document.getElementById('startEndOnly').checked;
 
-            let complexity = Math.pow(16, word.length);
+            let complexity = Math.pow(16, maxLength);
             if (isUppercaseOnly) complexity *= 3;
-            if (isStartEndOnly) complexity *= 30; // Adjusted for requiring both start AND end
+            if (isStartEndOnly) complexity *= 1000;
 
             const timePerAttempt = 0.005;
             const adjustedTimePerAttempt = timePerAttempt / numWorkers;
@@ -144,16 +148,18 @@
         }
 
         document.getElementById('startSearch').addEventListener('click', async () => {
-            const word = document.getElementById('searchWord').value;
-            const uppercaseOnly = document.getElementById('uppercaseOnly').checked;
-            const startEndOnly = document.getElementById('startEndOnly').checked;
+            const patterns = document.getElementById('searchWord').value
+                .split(',')
+                .map(w => w.trim())
+                .filter(w => w.length > 0);
 
-            if (!/^[a-fA-F0-9]+$/.test(word)) {
-                alert('The word must contain only a-f and 0-9 characters.');
+            if (!patterns.every(w => /^[a-fA-F0-9]+$/.test(w))) {
+                alert('All patterns must contain only a-f or 0-9 characters');
                 return;
             }
 
-            const wordToCheck = uppercaseOnly ? word.toUpperCase() : word;
+            const uppercaseOnly = document.getElementById('uppercaseOnly').checked;
+            const startEndOnly = document.getElementById('startEndOnly').checked;
             document.getElementById('result').innerHTML = 'Searching...';
             document.getElementById('log').innerHTML = 'Initializing...';
 
@@ -163,23 +169,32 @@
                     const blob = new Blob([`
                         self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js');
                         self.addEventListener('message', (event) => {
-                            const { wordToCheck, uppercaseOnly, startEndOnly } = event.data;
-                            let found = false;
+                            const { patterns, uppercaseOnly, startEndOnly } = event.data;
+                            const wordsToCheck = patterns.map(w => uppercaseOnly ? w.toUpperCase() : w);
                             let attempts = 0;
                             self.postMessage({ log: 'Worker started...' });
-                            while (!found) {
+                            while (true) {
                                 attempts++;
                                 const wallet = ethers.Wallet.createRandom();
                                 const address = wallet.address;
-                                let match = false;
-                                if (startEndOnly) {
-                                    const addressStart = address.slice(2, 2 + wordToCheck.length);
-                                    const addressEnd = address.slice(-wordToCheck.length);
-                                    match = (addressStart === wordToCheck && addressEnd === wordToCheck);
-                                } else {
-                                    match = address.includes(wordToCheck);
+                                
+                                let found = false;
+                                for (const word of wordsToCheck) {
+                                    let match = false;
+                                    if (startEndOnly) {
+                                        const addressStart = address.slice(2, 2 + word.length);
+                                        const addressEnd = address.slice(-word.length);
+                                        match = (addressStart === word && addressEnd === word);
+                                    } else {
+                                        match = address.includes(word);
+                                    }
+                                    if (match) {
+                                        found = true;
+                                        break;
+                                    }
                                 }
-                                if (match) {
+
+                                if (found) {
                                     self.postMessage({ found: true, address, mnemonic: wallet.mnemonic.phrase, attempts });
                                     break;
                                 }
@@ -193,7 +208,7 @@
                     const worker = new Worker(URL.createObjectURL(blob));
                     workers.push(worker);
 
-                    worker.postMessage({ wordToCheck, uppercaseOnly, startEndOnly });
+                    worker.postMessage({ patterns, uppercaseOnly, startEndOnly });
 
                     worker.onmessage = (event) => {
                         const data = event.data;
@@ -206,12 +221,13 @@
                             document.getElementById('result').innerHTML = `
                                 <p>Address: ${data.address}</p>
                                 <p>Mnemonic: ${data.mnemonic}</p>
-                                <p>Attempts: ${data.attempts}</p>
+                                <p>Total Attempts: ${totalAttempts + data.attempts}</p>
                             `;
                             workers.forEach(w => w.terminate());
                         } else {
+                            totalAttempts += data.attempts;
                             const logEntry = document.createElement('div');
-                            logEntry.innerText = `Attempts: ${data.attempts}`;
+                            logEntry.innerText = `${data.attempts.toLocaleString()}/s - Total: ${totalAttempts.toLocaleString()}`;
                             logEntry.classList.add('log-entry');
                             document.getElementById('log').insertBefore(logEntry, document.getElementById('log').firstChild);
                         }
