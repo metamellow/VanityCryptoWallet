@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bitcoin Vanity Address Generator</title>
+    <style>
+        body { background: #0f0f0f; color: #f7931a; font-family: monospace; padding: 20px; }
+        h1 { color: #f7931a; text-shadow: 0 0 10px #f7931a; }
+        input, button { 
+            background: #1f1f1f; 
+            border: 1px solid #f7931a; 
+            color: #f7931a; 
+            padding: 10px; 
+            width: 100%; 
+            margin: 5px 0; 
+        }
+        button:hover { background: #f7931a; color: #1f1f1f; }
+        .checkbox-group { 
+            display: flex; 
+            align-items: center; 
+            margin: 10px 0;
+            gap: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        #result, #log { 
+            background: #1f1f1f; 
+            border: 1px solid #f7931a; 
+            padding: 10px; 
+            margin: 20px 0; 
+        }
+        #log { height: 200px; overflow-y: scroll; }
+        .slider-container {
+            margin: 20px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        #workerSlider {
+            width: 100%;
+            background: #1f1f1f;
+            -webkit-appearance: none;
+            height: 10px;
+            border-radius: 5px;
+            outline: none;
+            border: 1px solid #f7931a;
+        }
+        #workerSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #f7931a;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #workerSlider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #f7931a;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #workerCount {
+            margin-top: 5px;
+            text-align: center;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #f7931a;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bitcoin Vanity Address Generator</h1>
+    <div id="status">Loading word list...</div>
+    <input type="text" id="searchWords" value="boob, dood, fuck, cunt, ass, twat, shit, penis, cock, poop, dick, balls, butt, piss, fart, tits">
+    <div class="checkbox-group">
+        <input type="checkbox" id="startEndOnly" checked>
+        <label for="startEndOnly">Match start and end (after bc1)</label>
+    </div>
+    <div class="slider-container">
+        <label for="workerSlider">Number of Workers:</label>
+        <input type="range" id="workerSlider" min="1">
+        <div id="workerCount"></div>
+    </div>
+    <button id="startSearch" disabled>Start Search</button>
+    <div id="result"></div>
+    <div id="log"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        let wordList = [];
+        let totalAttempts = 0;
+        const maxWorkers = navigator.hardwareConcurrency || 2;
+        const slider = document.getElementById('workerSlider');
+        const workerCount = document.getElementById('workerCount');
+        const startButton = document.getElementById('startSearch');
+        const statusDiv = document.getElementById('status');
+        
+        // Set slider max value and initial value
+        slider.max = maxWorkers;
+        slider.value = Math.max(1, Math.floor(maxWorkers * 0.25));
+        
+        function updateWorkerCount() {
+            workerCount.textContent = `${slider.value} worker${slider.value > 1 ? 's' : ''} (${Math.round(slider.value / maxWorkers * 100)}% of CPU)`;
+        }
+        
+        slider.addEventListener('input', updateWorkerCount);
+        updateWorkerCount();
+
+        // Fetch word list
+        statusDiv.style.display = 'block';
+        fetch('https://raw.githubusercontent.com/bitcoin/bips/refs/heads/master/bip-0039/english.txt')
+            .then(response => response.text())
+            .then(text => {
+                wordList = text.trim().split('\n');
+                statusDiv.style.display = 'none';
+                startButton.disabled = false;
+            })
+            .catch(error => {
+                statusDiv.textContent = 'Error loading word list. Please refresh the page.';
+                console.error('Error loading word list:', error);
+            });
+
+        startButton.addEventListener('click', () => {
+            const patterns = document.getElementById('searchWords').value
+                .split(',')
+                .map(p => p.trim().toLowerCase())
+                .filter(p => p);
+            
+            if (patterns.length === 0) {
+                alert('Please enter at least one pattern');
+                return;
+            }
+
+            const startEndOnly = document.getElementById('startEndOnly').checked;
+            const numWorkers = parseInt(slider.value);
+            
+            document.getElementById('result').innerHTML = 'Searching...';
+            document.getElementById('log').innerHTML = '';
+            totalAttempts = 0;
+
+            if (window.Worker) {
+                const workers = [];
+                for (let i = 0; i < numWorkers; i++) {
+                    const blob = new Blob([`
+                        self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js');
+                        
+                        const wordList = ${JSON.stringify(wordList)};
+
+                        function generateRandomWords(n) {
+                            const words = [];
+                            for (let i = 0; i < n; i++) {
+                                const randomIndex = Math.floor(Math.random() * wordList.length);
+                                words.push(wordList[randomIndex]);
+                            }
+                            return words;
+                        }
+
+                        function generateWallet() {
+                            // Generate 12 random words for mnemonic
+                            const words = generateRandomWords(12);
+                            const mnemonic = words.join(' ');
+                            
+                            // Use mnemonic as seed for private key
+                            const seed = CryptoJS.SHA256(mnemonic);
+                            const privateKey = seed.toString();
+                            
+                            // Generate address from private key
+                            const address = 'bc1' + CryptoJS.SHA256(privateKey).toString().substring(0, 38).toLowerCase();
+                            
+                            return { address, privateKey, mnemonic };
+                        }
+
+                        self.addEventListener('message', (event) => {
+                            const { patterns, startEndOnly } = event.data;
+                            let attempts = 0;
+
+                            while (true) {
+                                attempts++;
+                                const wallet = generateWallet();
+                                const addressWithoutPrefix = wallet.address.slice(3);
+                                
+                                const matchFound = patterns.some(pattern => {
+                                    if (startEndOnly) {
+                                        return addressWithoutPrefix.startsWith(pattern) && 
+                                               addressWithoutPrefix.endsWith(pattern);
+                                    }
+                                    return wallet.address.includes(pattern);
+                                });
+
+                                if (matchFound) {
+                                    self.postMessage({ 
+                                        found: true, 
+                                        ...wallet,
+                                        attempts 
+                                    });
+                                    break;
+                                }
+
+                                if (attempts % 5000 === 0) {
+                                    self.postMessage({ attempts });
+                                }
+                            }
+                        });
+                    `], { type: 'application/javascript' });
+
+                    const worker = new Worker(URL.createObjectURL(blob));
+                    workers.push(worker);
+                    worker.postMessage({ patterns, startEndOnly });
+
+                    worker.onmessage = (event) => {
+                        const data = event.data;
+                        if (data.found) {
+                            document.getElementById('result').innerHTML = `
+                                <p>Found match!</p>
+                                <p>Address: ${data.address}</p>
+                                <p>Private Key: ${data.privateKey}</p>
+                                <p>Mnemonic: ${data.mnemonic}</p>
+                                <p>Total Attempts: ${totalAttempts + data.attempts}</p>
+                            `;
+                            workers.forEach(w => w.terminate());
+                        } else {
+                            totalAttempts += data.attempts;
+                            const logEntry = document.createElement('div');
+                            logEntry.innerText = `${data.attempts.toLocaleString()}/s - Total: ${totalAttempts.toLocaleString()}`;
+                            document.getElementById('log').insertBefore(logEntry, document.getElementById('log').firstChild);
+                        }
+                    };
+                }
+            }
+        });
+    </script>
+</body>
+</html>
