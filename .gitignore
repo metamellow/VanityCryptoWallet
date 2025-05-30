@@ -1,3 +1,5 @@
-node_modules
+v1/node_modules
+v1/cloud
 
-cloud
+v2/node_modules
+V2/rust_vanity_generator/target
